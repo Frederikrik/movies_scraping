@@ -11,12 +11,12 @@ import traceback
 # Set up WebDriver (Firefox)
 driver = webdriver.Firefox()
 url = "https://www.rottentomatoes.com/browse/movies_at_home/affiliates:prime-video"
+driver.get(url)
 
 movies = []
 max_movies = 500
 
 try:
-    driver.get(url)
     wait = WebDriverWait(driver, 10)
 
     while len(movies) < max_movies:
@@ -29,26 +29,29 @@ try:
                 break
 
             try:
-                title = movie.find("span", class_="p--small").text.strip()
-                tomatometer = movie.find("score-pairs-deprecated").get("criticsscore", "N/A")
-                popcornmeter = movie.find("score-pairs-deprecated").get("audiencescore", "N/A")
+                # Extract movie details
+                title = movie.find("span", class_="p--small").text.strip() if movie.find("span", class_="p--small") else "N/A"
+                scores = movie.find("score-pairs-deprecated")  # Check for the score container
+                tomatometer = scores.get("criticsscore", "N/A") if scores else "N/A"
+                popcornmeter = scores.get("audiencescore", "N/A") if scores else "N/A"
                 streaming_start = movie.find("span", class_="smaller").text.strip() if movie.find("span", class_="smaller") else "N/A"
 
+                # Append movie data
                 movies.append({
                     "Title": title,
                     "Tomatometer": tomatometer,
                     "Popcornmeter": popcornmeter,
                     "Streaming Start": streaming_start
                 })
-            except AttributeError:
-                print(f"Error extracting data for a movie. Skipping.")
+            except AttributeError as e:
+                print(f"Error extracting data for a movie: {e}. Skipping.")
 
         # Click "Load More" button
         try:
             load_more_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-qa="dlp-load-more-button"]')))
             driver.execute_script("arguments[0].scrollIntoView(true);", load_more_button)
             ActionChains(driver).move_to_element(load_more_button).click(load_more_button).perform()
-
+            time.sleep(2)  # Add a short delay to allow the next page to load
         except Exception as e:
             print("No more 'Load More' button or an error occurred:", e)
             break
@@ -60,6 +63,7 @@ try:
     df["Popcornmeter"] = pd.to_numeric(df["Popcornmeter"], errors="coerce")
     df["Streaming Start"] = pd.to_datetime(df["Streaming Start"], format="%b %d, %Y", errors="coerce")
     print(df)
+
     # Handle missing data
     df["Tomatometer"].fillna(df["Tomatometer"].mean(), inplace=True)
     df["Popcornmeter"].fillna(df["Popcornmeter"].mean(), inplace=True)
