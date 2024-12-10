@@ -10,7 +10,7 @@ import traceback
 
 # Set up WebDriver (Firefox)
 driver = webdriver.Firefox()
-url = "https://www.rottentomatoes.com/browse/movies_at_home/affiliates:prime-video"
+url = "https://www.rottentomatoes.com/browse/movies_at_home/affiliates:hulu"
 driver.get(url)
 
 movies = []
@@ -32,8 +32,8 @@ try:
                 # Extract movie details
                 title = movie.find("span", class_="p--small").text.strip() if movie.find("span", class_="p--small") else "N/A"
                 scores = movie.find("score-pairs-deprecated")  # Check for the score container
-                tomatometer = scores.get("criticsscore", "N/A") if scores else "N/A"
-                popcornmeter = scores.get("audiencescore", "N/A") if scores else "N/A"
+                tomatometer = scores.get("critics-score-wrap", "N/A") if scores else "N/A"
+                popcornmeter = scores.get("audience-score-wrap", "N/A") if scores else "N/A"
                 streaming_start = movie.find("span", class_="smaller").text.strip() if movie.find("span", class_="smaller") else "N/A"
 
                 # Append movie data
@@ -70,8 +70,8 @@ try:
     df["Streaming Start"].fillna(method="ffill", inplace=True)
 
     # Save to CSV
-    df.to_csv("rottentomatoes_prime_video_movies.csv", index=False)
-    print(f"Movies saved to 'rottentomatoes_prime_video_movies.csv' with {len(df)} movies.")
+    df.to_csv("Hulu_movies.csv", index=False)
+    print(f"Movies saved to 'Hulu_movies.csv' with {len(df)} movies.")
 
 except Exception as e:
     print(f"An error occurred: {e}")
