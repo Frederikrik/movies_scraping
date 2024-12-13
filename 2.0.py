@@ -1,6 +1,8 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
 import time
 import traceback
@@ -25,34 +27,47 @@ try:
 
     while len(movies) < max_movies:
         # Find movie elements on the page
-        movie_elements = driver.find_elements(By.CSS_SELECTOR, movie_selector)
+        try:
+            movie_elements = WebDriverWait(driver, 10).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, movie_selector))
+            )
+        except Exception as e:
+            print(f"Error locating movie elements: {e}")
+            break
 
         for movie_element in movie_elements:
             try:
                 # Extract movie title
-                title_element = movie_element.find_element(By.CSS_SELECTOR, title_selector)
-                movie_title = title_element.text.strip()
+                try:
+                    title_element = movie_element.find_element(By.CSS_SELECTOR, title_selector)
+                    movie_title = title_element.text.strip()
+                except Exception as e:
+                    movie_title = "N/A"
+                    print(f"Error extracting movie title: {e}")
 
                 # Extract Tomatometer score
                 try:
                     tomatometer_element = movie_element.find_element(By.CSS_SELECTOR, tomatometer_selector)
                     tomatometer_score = tomatometer_element.text.strip()
                 except Exception as e:
-                    tomatometer_score = "N/A"  # Handle missing Tomatometer scores
+                    tomatometer_score = "N/A"
+                    print(f"Error extracting Tomatometer score: {e}")
 
                 # Extract Popcornmeter score
                 try:
                     popcornmeter_element = movie_element.find_element(By.CSS_SELECTOR, popcornmeter_selector)
                     popcornmeter_score = popcornmeter_element.text.strip()
                 except Exception as e:
-                    popcornmeter_score = "N/A"  # Handle missing Popcornmeter scores
+                    popcornmeter_score = "N/A"
+                    print(f"Error extracting Popcornmeter score: {e}")
 
                 # Extract Streaming Start Date
                 try:
                     streaming_start_element = movie_element.find_element(By.CSS_SELECTOR, streaming_start_selector)
                     streaming_start_date = streaming_start_element.text.strip()
                 except Exception as e:
-                    streaming_start_date = "N/A"  # Handle missing start date
+                    streaming_start_date = "N/A"
+                    print(f"Error extracting Streaming Start Date: {e}")
 
                 # Add movie data if the title is not already recorded
                 if movie_title and not any(movie['Title'] == movie_title for movie in movies):
@@ -81,9 +96,26 @@ try:
             break  # Exit the loop if no more button is available
 
     # Save movies to a CSV file
-    df = pd.DataFrame(movies)
-    df.to_csv("rottentomatoes_hulu_movies.csv", index=False)
-    print(f"Movies saved to 'rottentomatoes_hulu_movies.csv' with {len(movies)} movies.")
+    if movies:
+        # Create a DataFrame
+        df = pd.DataFrame(movies)
+
+        # Clean data for consistency
+        df["Tomatometer"] = df["Tomatometer"].str.replace("%", "").replace("N/A", None).astype("float", errors="ignore")
+        df["Popcornmeter"] = df["Popcornmeter"].str.replace("%", "").replace("N/A", None).astype("float",
+                                                                                                 errors="ignore")
+        df["Streaming Start"] = pd.to_datetime(df["Streaming Start"], format="%b %d, %Y", errors="coerce")
+
+        # Drop duplicates (if any)
+        df.drop_duplicates(inplace=True)
+
+        # Save the cleaned DataFrame to a CSV file
+        df.to_csv("tomatoes_hulu_movies.csv", index=False)
+        print(f"Movies saved to 'tomatoes_hulu_movies.csv' with {len(df)} unique movies.")
+    else:
+        print("No movies were scraped.")
+
+
 
 except Exception as e:
     print(f"An error occurred: {e}")
